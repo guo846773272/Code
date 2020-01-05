@@ -11,9 +11,13 @@
 
 #import "MyThread.h"
 
+typedef void(^Callback)(void);
+
 @interface ViewController ()
 
 @property (nonatomic, strong) NSThread *thread;
+
+@property (nonatomic, copy) Callback callback;
 
 @end
 
@@ -21,17 +25,6 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    
-    //    NSLog(@"%@", [NSRunLoop currentRunLoop]);
-    
-    //    kCFRunLoopEntry = (1UL << 0),
-    //    kCFRunLoopBeforeTimers = (1UL << 1),
-    //    kCFRunLoopBeforeSources = (1UL << 2),
-    //    kCFRunLoopBeforeWaiting = (1UL << 5),
-    //    kCFRunLoopAfterWaiting = (1UL << 6),
-    //    kCFRunLoopExit = (1UL << 7),
-    //    kCFRunLoopAllActivities = 0x0FFFFFFFU
-    
     
 }
 
@@ -86,19 +79,67 @@
      第三个参数:运行模式
      */
     CFRunLoopAddObserver(CFRunLoopGetCurrent(),observer, kCFRunLoopDefaultMode);
+    CFRelease(observer);
+}
+
+- (void)addEvent2BeforeWaiting {
+    
+    self.callback = ^(void) {
+        NSLog(@"callback kCFRunLoopBeforeWaiting");
+    };
+    
+    CFRunLoopRef runLoop = CFRunLoopGetCurrent();
+    static CFRunLoopObserverRef defaultModeObserver;
+    CFRunLoopObserverContext context = {
+        0,
+        (__bridge void *)self,
+        &CFRetain,
+        &CFRelease,
+        NULL
+    };
+    defaultModeObserver = CFRunLoopObserverCreate(CFAllocatorGetDefault(), kCFRunLoopBeforeWaiting, YES, NSIntegerMax - 999, &_defaultModeRunLoopWorkDistributionCallback, &context);
+    CFRunLoopAddObserver(runLoop, defaultModeObserver, kCFRunLoopDefaultMode);
+    CFRelease(defaultModeObserver);
+}
+
+static void _defaultModeRunLoopWorkDistributionCallback(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
+    _runLoopWorkDistributionCallback(observer, activity, info);
+}
+
+static void _runLoopWorkDistributionCallback(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
+    ViewController *vc = (__bridge ViewController *)info;
+    NSLog(@"observe: %@", observer);
+    NSLog(@"activity: %lu", activity);
+    
+    NSLog(@"kCFRunLoopEntry: %lu", activity & kCFRunLoopEntry);
+    NSLog(@"kCFRunLoopBeforeTimers: %lu", activity & kCFRunLoopBeforeTimers);
+    NSLog(@"kCFRunLoopBeforeSources: %lu", activity & kCFRunLoopBeforeSources);
+    NSLog(@"kCFRunLoopBeforeWaiting: %lu", activity & kCFRunLoopBeforeWaiting);
+    NSLog(@"kCFRunLoopAfterWaiting: %lu", activity & kCFRunLoopAfterWaiting);
+    NSLog(@"kCFRunLoopExit: %lu", activity & kCFRunLoopExit);
+    NSLog(@"kCFRunLoopAllActivities: %lu", activity & kCFRunLoopAllActivities);
+    
+    NSLog(@"vc: %p", vc);
+    
+    if (vc.callback)
+        vc.callback();
+    
+    NSLog(@"----------------------------");
 }
 
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
     
-    [self addRunLoopObserver];
+//    [self addRunLoopObserver];
+    [self addEvent2BeforeWaiting];
+    NSLog(@"self: %p", self);
     
-    //    [self test0];
-    //    [self test1];
-    //    [self test2];
-    //    [self test3];
-    //    [self test4];
-    [self test5];
-    //    [self test6];
+//    [self test0];
+//    [self test1];
+//    [self test2];
+//    [self test3];
+//    [self test4];
+//    [self test5];
+//    [self test6];
     
 }
 
